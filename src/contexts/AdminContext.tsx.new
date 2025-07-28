@@ -1,0 +1,466 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+
+interface GameConfig {
+  enabled: boolean;
+  order: number;
+  maxAttempts: number;
+  timeLimit?: number;
+  customSettings: {
+    [key: string]: any;
+  };
+}
+
+interface SlotMachineConfig {
+  enabled: boolean;
+  totalPrizes: number;
+  winProbability: number;
+  prizesAwarded: number;
+  slotSymbols: string[];
+  winningCombinations: string[][];
+}
+
+interface AdminConfig {
+  brandName: string;
+  primaryColor: string;
+  secondaryColor: string;
+  logoUrl: string;
+  welcomeMessage: string;
+  eventTheme: {
+    personName: string;
+    eventType: string;
+    age: number;
+    customMessage: string;
+  };
+  gameTexts: {
+    [key: string]: string;
+  };
+  prizes: string[];
+  puzzleImage: string;
+  gameConfigs: {
+    [key: string]: GameConfig;
+  };
+  slotMachine: SlotMachineConfig;
+  instantPrizes: boolean;
+}
+
+interface AdminContextType {
+  config: AdminConfig;
+  updateConfig: (newConfig: Partial<AdminConfig>) => void;
+  updateGameConfig: (gameId: string, gameConfig: Partial<GameConfig>) => void;
+  updateSlotMachine: (slotConfig: Partial<SlotMachineConfig>) => void;
+  awardPrize: () => void;
+  resetPrizeCount: () => void;
+  resetToDefaults: () => void;
+  isAdminMode: boolean;
+  setAdminMode: (mode: boolean) => void;
+}
+
+const defaultGameConfigs: { [key: string]: GameConfig } = {
+  'scratch-card': {
+    enabled: false,
+    order: 0,
+    maxAttempts: 3,
+    customSettings: {
+      scratchAreas: 6,
+      winProbability: 0.4
+    }
+  },
+  'roulette': {
+    enabled: false, // Disabled
+    order: 1,
+    maxAttempts: 2,
+    customSettings: {
+      spinDuration: 3000,
+      segments: 8
+    }
+  },
+  'memory': {
+    enabled: true,
+    order: 2,
+    maxAttempts: 2,
+    customSettings: {
+      gridSize: 4,
+      maxMoves: 10, // Changed from 25 to 10
+      cardPairs: 8,
+      showPreview: true
+    }
+  },
+  'dice': {
+    enabled: false,
+    order: 3,
+    maxAttempts: 3,
+    customSettings: {
+      diceCount: 2,
+      winningNumbers: [7, 11, 12],
+      animations: true
+    }
+  },
+  'puzzle': {
+    enabled: true,
+    order: 4,
+    maxAttempts: 2,
+    timeLimit: 400,
+    customSettings: {
+      pieces: 12,
+      showPreview: true,
+      snapSensitivity: 30
+    }
+  },
+  'logoHunt': {
+    enabled: true,
+    order: 5,
+    maxAttempts: 2,
+    customSettings: {
+      gridSize: 4,
+      maxAttempts: 8,
+      logosToFind: 3,
+      scoringEnabled: true
+    }
+  },
+  'simon': {
+    enabled: false, // Disabled - changed from true to false
+    order: 6,
+    maxAttempts: 3,
+    customSettings: {
+      sequenceLength: 8,
+      speed: 800,
+      showHints: true
+    }
+  },
+  'wordGuess': {
+    enabled: false, // Disabled
+    order: 7,
+    maxAttempts: 2,
+    customSettings: {
+      maxWrongGuesses: 6,
+      wordLength: 5,
+      hints: true
+    }
+  },
+  'colorMatch': {
+    enabled: false,
+    order: 8,
+    maxAttempts: 2,
+    timeLimit: 80,
+    customSettings: {
+      colorsCount: 6,
+      rounds: 5,
+      difficulty: 'medium'
+    }
+  },
+  'numberSequence': {
+    enabled: false, // Disabled
+    order: 9,
+    maxAttempts: 3,
+    customSettings: {
+      sequenceLength: 6,
+      difficulty: 'medium',
+      timeLimit: 60
+    }
+  },
+  'reactionTime': {
+    enabled: false, // Disabled
+    order: 10,
+    maxAttempts: 3,
+    customSettings: {
+      rounds: 5,
+      targetTime: 500,
+      difficulty: 'medium'
+    }
+  },
+  'musicQuiz': {
+    enabled: false,
+    order: 11,
+    maxAttempts: 2,
+    customSettings: {
+      questionsCount: 10,
+      timePerQuestion: 30,
+      genre: 'pop'
+    }
+  },
+  'trivia': {
+    enabled: true,
+    order: 12,
+    maxAttempts: 2,
+    customSettings: {
+      questions: [
+        {
+          question: "¿Cuánto mide Mia?",
+          options: ["1.64m", "1.60m", "1.67m"],
+          correct: 0
+        },
+        {
+          question: "¿Cuál es el sabor de helado favorito de Mia?",
+          options: ["Chocolate", "Frutilla y granizado", "Dulce de leche"],
+          correct: 1
+        },
+        {
+          question: "¿Cuál es la estación del año favorita de Mia?",
+          options: ["Invierno", "Otoño", "Verano"],
+          correct: 2
+        },
+        {
+          question: "¿Qué día de la semana nació Mia?",
+          options: ["Viernes", "Sábado", "Domingo"],
+          correct: 0
+        },
+        {
+          question: "¿A qué hora nació Mia?",
+          options: ["10:30 de la mañana", "11:50 del mediodía", "2:15 de la tarde"],
+          correct: 1
+        },
+        {
+          question: "¿Cuántas mascotas ha tenido Mia?",
+          options: ["2 mascotas", "4 mascotas", "3 mascotas"],
+          correct: 2
+        },
+        {
+          question: "¿Cuál es la comida favorita de Mia?",
+          options: ["Fajitas", "Pizza", "Hamburguesas"],
+          correct: 0
+        },
+        {
+          question: "¿Cuál es el hobby favorito de Mia?",
+          options: ["Leer libros", "Ir al gimnasio", "Ver películas"],
+          correct: 1
+        },
+        {
+          question: "¿En qué momento del día nació Mia?",
+          options: ["Por la mañana", "Por la tarde", "Al mediodía"],
+          correct: 2
+        },
+        {
+          question: "¿Qué tipo de actividad física prefiere Mia?",
+          options: ["Gimnasio", "Natación", "Correr"],
+          correct: 0
+        },
+        {
+          question: "¿Qué sabor NO es favorito de Mia en helados?",
+          options: ["Menta", "Chocolate", "Frutilla"],
+          correct: 1
+        },
+        {
+          question: "¿Cuántos centímetros mide Mia exactamente?",
+          options: ["160 cm", "167 cm", "164 cm"],
+          correct: 2
+        },
+        {
+          question: "¿En qué estación del año Mia NO se siente más cómoda?",
+          options: ["Otoño", "Invierno", "Primavera"],
+          correct: 1
+        },
+        {
+          question: "¿Qué comida internacional prefiere Mia?",
+          options: ["Sushi japonés", "Pasta italiana", "Fajitas mexicanas"],
+          correct: 2
+        }
+      ]
+    }
+  }
+};
+
+const defaultConfig: AdminConfig = {
+  brandName: 'CELEBRACIÓN MÁGICA',
+  primaryColor: '#ec4899',
+  secondaryColor: '#fbbf24',
+  logoUrl: '/lovable-uploads/c0dee3d8-2302-4cce-a258-7104f9201c49.png',
+  welcomeMessage: '¡Bienvenidos a la Celebración de los 15 Años!',
+  eventTheme: {
+    personName: 'Mia',
+    eventType: 'Celebración',
+    age: 15,
+    customMessage: '¡Celebremos juntos este día tan especial lleno de magia y diversión!'
+  },
+  gameTexts: {
+    'scratch-card': 'Rasca y Descubre',
+    'roulette': 'Ruleta Mágica',
+    'memory': 'Juego de Memoria',
+    'dice': 'Dados de la Suerte',
+    'puzzle': 'Rompecabezas',
+    'logoHunt': 'Búsqueda del tesoro',
+    'simon': 'Secuencias',
+    'wordGuess': 'Adivina la Palabra',
+    'colorMatch': 'Armonía de Colores',
+    'numberSequence': 'Secuencia Numérica',
+    'reactionTime': 'Tiempo de Reacción',
+    'musicQuiz': 'Quiz Musical',
+    'trivia': 'Trivia'
+  },
+  prizes: [
+    'Premio #1',
+    'Premio #2',
+    'Premio #3',
+    'Premio #4',
+    'Premio #5',
+    'Premio #6'
+  ],
+  puzzleImage: '/Fotos Mia/IMG-20250725-WA0010.jpg',
+  gameConfigs: defaultGameConfigs,
+  slotMachine: {
+    enabled: false,
+    totalPrizes: 25,
+    winProbability: 0.3,
+    prizesAwarded: 0,
+    slotSymbols: ['👑', '💎', '🌹', '✨', '🎂', '💖'],
+    winningCombinations: [
+      ['👑', '👑', '👑'],
+      ['💎', '💎', '💎'],
+      ['🌹', '🌹', '🌹'],
+      ['✨', '✨', '✨'],
+      ['🎂', '🎂', '🎂'],
+      ['💖', '💖', '💖']
+    ]
+  },
+  instantPrizes: true
+};
+
+const STORAGE_KEY = 'partyGameConfig';
+
+const loadConfigFromStorage = (): AdminConfig => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsedConfig = JSON.parse(stored);
+      console.log('Loading config from storage...');
+      
+      // Merge with default config to ensure all games have proper configuration
+      const mergedConfig = {
+        ...defaultConfig,
+        ...parsedConfig,
+        gameConfigs: {
+          ...defaultGameConfigs,
+          ...parsedConfig.gameConfigs
+        },
+        // Always use the latest game texts from default config
+        gameTexts: {
+          ...defaultConfig.gameTexts,
+          ...parsedConfig.gameTexts
+        }
+      };
+      
+      // FORCE Simon game to be disabled ALWAYS
+      if (mergedConfig.gameConfigs.simon) {
+        mergedConfig.gameConfigs.simon = {
+          ...mergedConfig.gameConfigs.simon,
+          enabled: false
+        };
+      }
+      
+      // ALWAYS force the latest trivia questions from the code
+      if (mergedConfig.gameConfigs.trivia) {
+        mergedConfig.gameConfigs.trivia = {
+          ...mergedConfig.gameConfigs.trivia,
+          customSettings: {
+            ...mergedConfig.gameConfigs.trivia.customSettings,
+            questions: defaultGameConfigs.trivia.customSettings.questions
+          }
+        };
+      }
+      
+      console.log('Simon game enabled status:', mergedConfig.gameConfigs.simon?.enabled);
+      console.log('Trivia questions loaded:', mergedConfig.gameConfigs.trivia?.customSettings?.questions?.length);
+      console.log('First question:', mergedConfig.gameConfigs.trivia?.customSettings?.questions?.[0]?.question);
+      
+      // Save the updated config back to localStorage
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedConfig));
+      
+      return mergedConfig;
+    }
+  } catch (error) {
+    console.warn('Error loading config from storage:', error);
+  }
+  
+  console.log('Using default config with Simon disabled and trivia questions:', defaultConfig.gameConfigs.trivia?.customSettings?.questions?.length);
+  return defaultConfig;
+};
+
+const saveConfigToStorage = (config: AdminConfig) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  } catch (error) {
+    console.warn('Error saving config to storage:', error);
+  }
+};
+
+const AdminContext = createContext<AdminContextType | undefined>(undefined);
+
+export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [config, setConfig] = useState<AdminConfig>(loadConfigFromStorage);
+  const [isAdminMode, setAdminMode] = useState(false);
+
+  useEffect(() => {
+    saveConfigToStorage(config);
+  }, [config]);
+
+  const updateConfig = (newConfig: Partial<AdminConfig>) => {
+    setConfig(prev => ({ ...prev, ...newConfig }));
+  };
+
+  const updateGameConfig = (gameId: string, gameConfig: Partial<GameConfig>) => {
+    setConfig(prev => ({
+      ...prev,
+      gameConfigs: {
+        ...prev.gameConfigs,
+        [gameId]: { ...prev.gameConfigs[gameId], ...gameConfig }
+      }
+    }));
+  };
+
+  const updateSlotMachine = (slotConfig: Partial<SlotMachineConfig>) => {
+    setConfig(prev => ({
+      ...prev,
+      slotMachine: { ...prev.slotMachine, ...slotConfig }
+    }));
+  };
+
+  const awardPrize = () => {
+    setConfig(prev => ({
+      ...prev,
+      slotMachine: {
+        ...prev.slotMachine,
+        prizesAwarded: prev.slotMachine.prizesAwarded + 1
+      }
+    }));
+  };
+
+  const resetPrizeCount = () => {
+    setConfig(prev => ({
+      ...prev,
+      slotMachine: {
+        ...prev.slotMachine,
+        prizesAwarded: 0
+      }
+    }));
+  };
+
+  const resetToDefaults = () => {
+    setConfig(defaultConfig);
+    localStorage.removeItem(STORAGE_KEY);
+  };
+
+  return (
+    <AdminContext.Provider value={{ 
+      config, 
+      updateConfig, 
+      updateGameConfig, 
+      updateSlotMachine, 
+      awardPrize, 
+      resetPrizeCount, 
+      resetToDefaults,
+      isAdminMode, 
+      setAdminMode 
+    }}>
+      {children}
+    </Admin-Provider>
+  );
+};
+
+export const useAdmin = () => {
+  const context = useContext(AdminContext);
+  if (!context) {
+    throw new Error('useAdmin must be used within AdminProvider');
+  }
+  return context;
+};
+
+export default AdminProvider;

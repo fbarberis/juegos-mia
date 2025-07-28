@@ -1,0 +1,98 @@
+import React from 'react';
+import { useAdmin } from '../../../contexts/AdminContext';
+
+const miaPhotos = [
+  { 
+    bg: 'bg-pink-500', 
+    name: 'Mia Bailando', 
+    sound: '🌹',
+    image: '/Fotos Mia/IMG-20250725-WA0014.jpg',
+    flashColor: '#ff0080'
+  },
+  { 
+    bg: 'bg-purple-500', 
+    name: 'Mia Celebrando', 
+    sound: '💜',
+    image: '/Fotos Mia/IMG-20250725-WA0015.jpg',
+    flashColor: '#00ff80'
+  },
+  { 
+    bg: 'bg-yellow-400', 
+    name: 'Mia Sonriendo', 
+    sound: '✨',
+    image: '/Fotos Mia/IMG-20250725-WA0016.jpg',
+    flashColor: '#ffff00'
+  },
+  { 
+    bg: 'bg-cyan-400', 
+    name: 'Mia Feliz', 
+    sound: '💎',
+    image: '/Fotos Mia/Imagen de WhatsApp 2025-07-25 a las 10.52.19_fe2ab3d4.jpg',
+    flashColor: '#0080ff'
+  }
+];
+
+interface SimonGridProps {
+  activeButton: number | null;
+  isShowingSequence: boolean;
+  isPlaying: boolean;
+  gameOver: boolean;
+  gameWon: boolean;
+  onButtonClick: (index: number) => void;
+}
+
+export const SimonGrid: React.FC<SimonGridProps> = ({
+  activeButton,
+  isShowingSequence,
+  isPlaying,
+  gameOver,
+  gameWon,
+  onButtonClick
+}) => {
+  const { config } = useAdmin();
+
+  return (
+    <div className="grid grid-cols-2 gap-4 mb-6 max-w-sm mx-auto">
+      {miaPhotos.map((photo, index) => (
+        <button
+          key={index}
+          className={`
+            aspect-square rounded-xl border-4 transition-all duration-300 overflow-hidden relative
+            ${activeButton === index ? 'brightness-150 scale-110 shadow-2xl' : 'brightness-75'}
+            ${!isShowingSequence && isPlaying && !gameOver && !gameWon ? 'hover:brightness-110 hover:scale-105' : ''}
+            ${!isPlaying ? 'opacity-50' : ''}
+          `}
+          style={{
+            borderColor: `${config.secondaryColor}80`,
+            boxShadow: activeButton === index ? `0 0 30px ${photo.flashColor}` : 'none'
+          }}
+          onClick={() => onButtonClick(index)}
+          disabled={isShowingSequence || !isPlaying || gameOver}
+        >
+          <div className="absolute inset-0 flex items-start justify-center">
+            <img 
+              src={photo.image} 
+              alt={photo.name}
+              className="w-full h-full object-cover object-top"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                const parent = e.currentTarget.parentElement;
+                if (parent) {
+                  parent.className = `${parent.className} ${photo.bg}`;
+                }
+              }}
+            />
+          </div>
+          {activeButton === index && (
+            <div 
+              className="absolute inset-0 animate-pulse rounded-xl"
+              style={{
+                background: `linear-gradient(45deg, ${photo.flashColor}80, ${photo.flashColor}60)`
+              }}
+            />
+          )}
+        </button>
+      ))}
+    </div>
+  );
+};

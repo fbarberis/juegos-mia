@@ -1,0 +1,164 @@
+
+import React, { useState, useEffect } from 'react';
+import { useAdmin } from '../../contexts/AdminContext';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+// Usar las nuevas imágenes de Mia como símbolos del slot
+const miaSlotSymbols = [
+  '🌹', '💜', '✨', '💎', '🎉', '⭐', '🎊', '🌟'
+];
+
+interface SlotMachineProps {
+  onWin: (prize: string) => void;
+  onLose: () => void;
+}
+
+export const SlotMachine: React.FC<SlotMachineProps> = ({ onWin, onLose }) => {
+  const { config, awardPrize } = useAdmin();
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [slots, setSlots] = useState(['🎁', '🎁', '🎁']);
+  const [result, setResult] = useState<string | null>(null);
+
+  const spin = () => {
+    if (isSpinning) return;
+    
+    setIsSpinning(true);
+    setResult(null);
+    
+    // Simular el giro con animación
+    const spinDuration = 2000;
+    const interval = setInterval(() => {
+      setSlots([
+        miaSlotSymbols[Math.floor(Math.random() * miaSlotSymbols.length)],
+        miaSlotSymbols[Math.floor(Math.random() * miaSlotSymbols.length)],
+        miaSlotSymbols[Math.floor(Math.random() * miaSlotSymbols.length)]
+      ]);
+    }, 100);
+
+    setTimeout(() => {
+      clearInterval(interval);
+      
+      // Determinar resultado final
+      const hasWon = Math.random() < (config.slotMachine?.winProbability || 0.3);
+      const remainingPrizes = (config.slotMachine?.totalPrizes || 10) - (config.slotMachine?.prizesAwarded || 0);
+      
+      if (hasWon && remainingPrizes > 0) {
+        // Ganar - mostrar combinación ganadora
+        const winningSymbol = miaSlotSymbols[Math.floor(Math.random() * miaSlotSymbols.length)];
+        setSlots([winningSymbol, winningSymbol, winningSymbol]);
+        const prize = config.prizes[Math.floor(Math.random() * config.prizes.length)];
+        setResult('win');
+        awardPrize();
+        setTimeout(() => onWin(prize), 1000);
+      } else {
+        // Perder - mostrar combinación no ganadora
+        let finalSlots;
+        do {
+          finalSlots = [
+            miaSlotSymbols[Math.floor(Math.random() * miaSlotSymbols.length)],
+            miaSlotSymbols[Math.floor(Math.random() * miaSlotSymbols.length)],
+            miaSlotSymbols[Math.floor(Math.random() * miaSlotSymbols.length)]
+          ];
+        } while (finalSlots[0] === finalSlots[1] && finalSlots[1] === finalSlots[2]);
+        
+        setSlots(finalSlots);
+        setResult('lose');
+        setTimeout(() => onLose(), 1000);
+      }
+      
+      setIsSpinning(false);
+    }, spinDuration);
+  };
+
+  const remainingPrizes = (config.slotMachine?.totalPrizes || 10) - (config.slotMachine?.prizesAwarded || 0);
+
+  return (
+    <Card className="w-full max-w-md mx-auto bg-gradient-to-br from-purple-900 via-pink-900 to-indigo-900 border-2 border-yellow-400">
+      <CardHeader className="text-center">
+        <CardTitle className="text-2xl font-bold text-white">
+          🎰 Tragaperras de {config.eventTheme.personName}
+        </CardTitle>
+        <p className="text-gray-300">
+          Premios restantes: {remainingPrizes} / {config.slotMachine?.totalPrizes || 10}
+        </p>
+      </CardHeader>
+      
+      <CardContent className="space-y-6">
+        {/* Slots Display */}
+        <div className="flex justify-center space-x-4">
+          {slots.map((symbol, index) => (
+            <div
+              key={index}
+              className={`
+                w-20 h-20 bg-white rounded-lg flex items-center justify-center text-4xl
+                border-4 border-yellow-400 shadow-lg
+                ${isSpinning ? 'animate-spin' : ''}
+                ${result === 'win' ? 'animate-pulse border-green-400 bg-green-100' : ''}
+                ${result === 'lose' ? 'border-red-400 bg-red-100' : ''}
+              `}
+            >
+              {symbol}
+            </div>
+          ))}
+        </div>
+
+        {/* Result Display */}
+        {result && !isSpinning && (
+          <div className={`text-center p-4 rounded-lg ${
+            result === 'win' 
+              ? 'bg-green-600 text-white' 
+              : 'bg-red-600 text-white'
+          }`}>
+            {result === 'win' ? (
+              <>
+                <div className="text-2xl mb-2">🎉 ¡GANASTE! 🎉</div>
+                <p>¡Felicidades! Has ganado un premio especial</p>
+              </>
+            ) : (
+              <>
+                <div className="text-2xl mb-2">😔 No hay suerte</div>
+                <p>¡Sigue intentando en otros juegos!</p>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Spin Button */}
+        <div className="text-center">
+          <Button
+            onClick={spin}
+            disabled={isSpinning || remainingPrizes <= 0}
+            className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-8 py-4 text-xl font-bold"
+          >
+            {isSpinning ? (
+              <>
+                <span className="animate-spin mr-2">🎰</span>
+                Girando...
+              </>
+            ) : remainingPrizes <= 0 ? (
+              'Sin premios'
+            ) : (
+              '¡GIRAR!'
+            )}
+          </Button>
+        </div>
+
+        {/* Winning Combinations Info */}
+        <div className="bg-black/30 rounded-lg p-3">
+          <h4 className="text-white font-semibold mb-2">Símbolos de Mia:</h4>
+          <div className="grid grid-cols-4 gap-2 text-sm text-gray-300 text-center">
+            {miaSlotSymbols.map((symbol, index) => (
+              <div key={index} className="text-2xl">
+                {symbol}
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 mt-2 text-center">
+            ¡Consigue 3 símbolos iguales para ganar!
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
